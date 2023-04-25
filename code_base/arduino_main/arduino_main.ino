@@ -1,7 +1,6 @@
 const int ledPwm = 5;
 const int sensor = A0;
 
-int sensorValue = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -23,14 +22,14 @@ int sendData(int sensorValuePwm){
   if(bytesSent == 0 ){
     Serial.println("ERROR: sensor values not sent");
   }else{
-    Serial.print("INFO: sent serial data: ")
+    Serial.print("INFO: sent serial data: ");
     Serial.println(sensorValuePwm);
   }
 
   return bytesSent;
 }
 
-voud readData(){
+int readData(){
   int bytesRecieved = 0;
 
   if(Serial.available() > 0){
@@ -43,7 +42,7 @@ voud readData(){
 
 void loop() {
 
-  sensorValuePwm = map(readSensor(), 0, 1024, 0, 255);
+  int sensorValuePwm = map(readSensor(), 0, 1024, 0, 255);
   
   sendData(sensorValuePwm);
   
@@ -52,6 +51,6 @@ void loop() {
   if(dataRecieved != 0){
     analogWrite(ledPwm, dataRecieved);      
   }
-  
+
   delay(200);
 }
