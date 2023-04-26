@@ -1,0 +1,30 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <script type="text/javascript" src="//code.jquery.com/jquery-1.4.2.min.js"></script>
+        <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.5/socket.io.min.js"></script>
+        <script type="text/javascript" charset="utf-8">
+
+          $(document).ready(function() {
+            namespace = '/prod';
+            var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + namespace);
+     
+            socket.on('connect', function() {
+              socket.emit('connected', {data: 'CONNECTED FROM CLIENT', value: 1}); 
+            });
+
+           $('form#disconnect').submit(function(event) {
+              socket.emit('disconnect_request');
+              return false; 
+              });         
+           });
+
+         </script>
+          
+        <title>Flask-SocketIO Test</title>
+    </head>
+
+    <body>
+      
+    </body>
+</html>
