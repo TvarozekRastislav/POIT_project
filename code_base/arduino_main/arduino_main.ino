@@ -16,9 +16,14 @@ int readSensor(){
 
 int sendData(int sensorValuePwm){
   int bytesSent = 0;
+  char strBuf[50];
 
-  Serial.write("ard_intensity:\n");
-  bytesSent = Serial.write("sensorValuePwm");
+  Serial.println("--------SENT DATA ------");
+  sprintf(strBuf, "sent_arduino_sensor=%d", sensorValuePwm);
+  bytesSent = Serial.write(strBuf);
+  Serial.println("------------------------");
+
+
   if(bytesSent == 0 ){
     Serial.println("ERROR: sensor values not sent");
   }else{
@@ -33,9 +38,14 @@ int readData(){
   int bytesRecieved = 0;
 
   if(Serial.available() > 0){
-    bytesRecieved = Serial.read();
-    Serial.print("INFO: recieved serial data: ");
-    Serial.println(bytesRecieved);
+
+    char strBuf[50];
+
+    Serial.println("--------READ DATA ------");
+      Serial.print("INFO: recieved serial data: ");
+      Serial.println(bytesRecieved);
+    Serial.println("------------------------");
+
   }
   return bytesRecieved;
 }
@@ -50,7 +60,10 @@ void loop() {
 
   if(dataRecieved != 0){
     analogWrite(ledPwm, dataRecieved);      
-  }
+  }else if(dataRecieved == -1){
+    exit(0);
+  } 
 
   delay(200);
+
 }
