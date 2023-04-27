@@ -42,8 +42,8 @@ int readData(){
     char strBuf[50];
 
     Serial.println("--------READ DATA ------");
-      Serial.print("INFO: recieved serial data: ");
-      Serial.println(bytesRecieved);
+    Serial.print("INFO: recieved serial data: ");
+    Serial.println(bytesRecieved);
     Serial.println("------------------------");
 
   }
@@ -60,7 +60,7 @@ void loop() {
 
   if(dataRecieved != 0){
     analogWrite(ledPwm, dataRecieved);      
-  }else if(dataRecieved == -1){
+  }else if(dataRecieved == 9999){
     exit(0);
   } 
 

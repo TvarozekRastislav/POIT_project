@@ -13,18 +13,43 @@
               socket.emit('connected', {data: 'CONNECTED FROM CLIENT', value: 1}); 
             });
 
-           $('form#disconnect').submit(function(event) {
-              socket.emit('disconnect_request');
+            socket.on('initial_data', function(msg){
+              initial_values = msg['data']
+            })
+
+            $('form#pwm_req').submit(function(event) {
+              socket.emit('pwm_req',{value: $('#pwm_input').val});
               return false; 
               });         
-           });
+
+            $('button#buttonExit').submit(function(event) {
+              socket.emit('disconnect_request');
+              return false; 
+            });         
+          }); 
 
          </script>
-          
-        <title>Flask-SocketIO Test</title>
-    </head>
+        <title>Regulácia Intenzity Osvetlenia</title>
 
+    </head>
     <body>
+
+      <h1> Regulácia Intenzity Osvetlenia </h1>
+
+      <form id = "pwm_req">
+        <label for="num-input">Zadaj úroveň osvetlenia 0 až 255</label>
+        <input type="text" id="pwm_input" name="pwm_input" pattern="[1-9][0-9]?$|^100$" required>
+        <br><br>
+        <input type="submit" value="nastaviť">
+      </form>
+
+      <button id="buttonOnOff" type="submit" value="on">Spustiť monitorovanie</button>
+
+      <button id="buttonExit" type="submit" value="exit">Ukončenie aplikácie</button>
       
+      <div>
+        Aktualna úroveň osveltenia
+
+      </div>
     </body>
 </html>
