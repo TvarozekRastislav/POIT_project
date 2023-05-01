@@ -6,72 +6,31 @@
           width: 75%;
           margin: 0 auto;
         }
-        .GaugeMeter {
-  position: Relative;
-  text-align: Center;
-  overflow: Hidden;
-  cursor: Default;
-  display: inline-block;
-}
-
-.GaugeMeter SPAN, .GaugeMeter B {
-  width: 54%;
-  position: Absolute;
-  text-align: Center;
-  display: Inline-Block;
-  color: RGBa(0,0,0,.8);
-  font-weight: 100;
-  font-family: "Open Sans", Arial;
-  overflow: Hidden;
-  white-space: NoWrap;
-  text-overflow: Ellipsis;
-  margin: 0 23%;
-}
-
-.GaugeMeter[data-style="Semi"] B {
-  width: 80%;
-  margin: 0 10%;
-}
-
-.GaugeMeter S, .GaugeMeter U {
-  text-decoration: None;
-  font-size: .60em;
-  font-weight: 200;
-  opacity: .6;
-}
-
-.GaugeMeter B {
-  color: #000;
-  font-weight: 200;
-  opacity: .8;
-}
       </style>
       
         <script type="text/javascript" src="//code.jquery.com/jquery-1.4.2.min.js"></script>
         <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.5/socket.io.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/gauge.js/1.3.5/gauge.min.js"></script>
-
         <script type="text/javascript" charset="utf-8">
 
+          on_off = 0
 
           $(document).ready(function() {
             namespace = '/prod';
             var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + namespace);
-     
+            
+
             socket.on('connect', function() {
               socket.emit('connected', {data: 'CONNECTED FROM CLIENT', value: 1}); 
             });
-
-            socket.on('initial_data', function(msg){
-              initial_values = msg['data']
-            })
             
             socket.on('sensor_data', function(msg){
               sensor_data = msg.data
               console.log(sensor_data)
               if(on_off == 1){
-                var dataList = document.getElementById("data_list"); // get the list element
+                // vypisovanie
+                var dataList = document.getElementById("data_list"); 
                 var newListItem = document.createElement("li"); 
                 var today = new Date();
                 var date = today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate();
@@ -79,35 +38,41 @@
                 var message = date+' '+time+' Intenzita osvetlenia: ' + sensor_data;
 			          newListItem.innerHTML = message; 
 			          dataList.appendChild(newListItem); 
+
                 if (dataList.children.length > 20) {
 				          dataList.removeChild(dataList.children[0]);
 			          }
+                
+                //chart
                 myChart.data.labels.push(msg.count)
                 myChart.data.datasets[0].data.push(parseInt(msg.data))
                 myChart.update();
+
+                //analog cifernik
                 gauge.set(sensor_data); // set actual value
 
 		          }
             })
-
+            
+            // regulacia req
             $('form#pwm_req').submit(function(event) {
               sent_value = ($('#pwm_input').val());
               socket.emit('pwm_req',{value: sent_value});              
               return false; 
               });         
-
+            
+            //vypnutie
             $('button#buttonExit').submit(function(event) {
               socket.emit('disconnect_request');
               return false; 
             });         
           }); 
-          
-        on_off = 0
 
         </script>
-        <title>Regulácia Intenzity Osvetlenia</title>
-
+    
+      <title>Regulácia Intenzity Osvetlenia</title>
     </head>
+
     <body>
 
       <h1> Regulácia Intenzity Osvetlenia </h1>
@@ -144,8 +109,20 @@
 
 <script>
   
+  function toggleStartStop() {
+    var button = document.getElementById("buttonOnOff");
+    if (button.innerHTML == "Spustiť monitorovanie") {
+      button.innerHTML = "Zastaviť monitorovanie";
+      on_off = 1;
+    } else {
+      button.innerHTML = "Spustiť monitorovanie";
+      on_off = 0;
+    }
+  }
 
-    var opts = {
+
+  // analog gauge and chart
+  var opts = {
     angle: 0.15, // The span of the gauge arc
     lineWidth: 0.44, // The line thickness
     radiusScale: 1, // Relative radius
@@ -161,8 +138,8 @@
     strokeColor: '#E0E0E0',  // to see which ones work best for you
     generateGradient: true,
     highDpiSupport: true,     // High resolution support
-    
   };
+
   var target = document.getElementById('foo'); // your canvas element
   var gauge = new Gauge(target).setOptions(opts); // create sexy gauge!
   gauge.maxValue = 255; // set max gauge value
@@ -170,17 +147,8 @@
   gauge.animationSpeed = 32; // set animation speed (32 is default value)
   gauge.setTextField(document.getElementById("preview-textfield"));
 
-  function toggleStartStop() {
-    var button = document.getElementById("buttonOnOff");
-    if (button.innerHTML == "Spustiť monitorovanie") {
-      button.innerHTML = "Zastaviť monitorovanie";
-      on_off = 1;
-    } else {
-      button.innerHTML = "Spustiť monitorovanie";
-      on_off = 0;
-    }
-  }
   labels = []
+
 const data = {
     labels: labels,
     datasets: [{
@@ -218,4 +186,8 @@ const myChart = new Chart(
     document.getElementById('myChart'),
     config
 );
+
+
   </script>
+
+

@@ -1,9 +1,11 @@
 from threading import Lock
 from flask import Flask, render_template, session, request, jsonify, url_for
 from flask_socketio import SocketIO, emit, disconnect  
+import configparser as ConfigParser
 import time
 import serial
 import re
+import MySQLdb  
 
 app = Flask(__name__)
 
@@ -16,6 +18,13 @@ thread_lock = Lock()
 ser = serial.Serial("/dev/ttyS2", 115200)
 ser.boundrate = 115200
 recived_data = 0
+
+config = ConfigParser.ConfigParser()
+config.read('config.cfg')
+myhost = config.get('mysqlDB', 'host')
+myuser = config.get('mysqlDB', 'user')
+mypasswd = config.get('mysqlDB', 'passwd')
+mydb = config.get('mysqlDB', 'db')
 
 def decode_message(message):
     string = message.decode('utf-8')
@@ -41,6 +50,11 @@ def background_thread(args):
     pwm_req = 0
     pwm_prev = 0
     reg_counter = 0
+    save_list_val = []
+    save_list_act = []
+    save_list_count = []
+    db = MySQLdb.connect(host=myhost,user=myuser,passwd=mypasswd,db=mydb)          
+
     while True:
         
         recived_data = ser.readline()
@@ -89,7 +103,22 @@ def background_thread(args):
                 reg_fin = 1
                 pwm_prev = pwm_req 
             
-            
+            if args.get("save") == 1 :
+                save = 1
+                save_list_val.add(arudino_message)
+                save_list_act.add(reg)
+                save_list_count.add(counter)
+
+               
+            if save == 1 and args.get("save") == 0:
+                save = 0 
+                jsonList = []
+                for i in range(0,len(save_list_val)):
+                    jsonList.append({"val" : save_list_val[i], "act" : save_list_act[i], "count": save_list_count[i]})
+                cursor = db.cursor()
+                cursor.execute("INSERT INTO intense (hodnoty) VALUES (%s)", (json.dumps(jsonList)))
+                db.commit()
+
         socketio.emit(
             'sensor_data',
             {
@@ -125,6 +154,10 @@ def pwm_req(message):
     print("PRISLI DATA")
     print(session['pwm_req'])
 
+@socketio.on('save', namespace='/prod')
+def pwm_req(message):
+    session['save'] = message['value']
+    
 
 if __name__ == '__main__':
     socketio.run(app, host="0.0.0.0", port=80, debug=True)
