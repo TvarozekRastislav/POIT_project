@@ -1,9 +1,59 @@
 <!DOCTYPE HTML>
 <html>
     <head>
+      <style>
+        #chart {
+          width: 75%;
+          margin: 0 auto;
+        }
+        .GaugeMeter {
+  position: Relative;
+  text-align: Center;
+  overflow: Hidden;
+  cursor: Default;
+  display: inline-block;
+}
+
+.GaugeMeter SPAN, .GaugeMeter B {
+  width: 54%;
+  position: Absolute;
+  text-align: Center;
+  display: Inline-Block;
+  color: RGBa(0,0,0,.8);
+  font-weight: 100;
+  font-family: "Open Sans", Arial;
+  overflow: Hidden;
+  white-space: NoWrap;
+  text-overflow: Ellipsis;
+  margin: 0 23%;
+}
+
+.GaugeMeter[data-style="Semi"] B {
+  width: 80%;
+  margin: 0 10%;
+}
+
+.GaugeMeter S, .GaugeMeter U {
+  text-decoration: None;
+  font-size: .60em;
+  font-weight: 200;
+  opacity: .6;
+}
+
+.GaugeMeter B {
+  color: #000;
+  font-weight: 200;
+  opacity: .8;
+}
+      </style>
+      
         <script type="text/javascript" src="//code.jquery.com/jquery-1.4.2.min.js"></script>
         <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.5/socket.io.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/gauge.js/1.3.5/gauge.min.js"></script>
+
         <script type="text/javascript" charset="utf-8">
+
 
           $(document).ready(function() {
             namespace = '/prod';
@@ -16,9 +66,33 @@
             socket.on('initial_data', function(msg){
               initial_values = msg['data']
             })
+            
+            socket.on('sensor_data', function(msg){
+              sensor_data = msg.data
+              console.log(sensor_data)
+              if(on_off == 1){
+                var dataList = document.getElementById("data_list"); // get the list element
+                var newListItem = document.createElement("li"); 
+                var today = new Date();
+                var date = today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate();
+                var time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
+                var message = date+' '+time+' Intenzita osvetlenia: ' + sensor_data;
+			          newListItem.innerHTML = message; 
+			          dataList.appendChild(newListItem); 
+                if (dataList.children.length > 20) {
+				          dataList.removeChild(dataList.children[0]);
+			          }
+                myChart.data.labels.push(msg.count)
+                myChart.data.datasets[0].data.push(parseInt(msg.data))
+                myChart.update();
+                gauge.set(sensor_data); // set actual value
+
+		          }
+            })
 
             $('form#pwm_req').submit(function(event) {
-              socket.emit('pwm_req',{value: $('#pwm_input').val});
+              sent_value = ($('#pwm_input').val());
+              socket.emit('pwm_req',{value: sent_value});              
               return false; 
               });         
 
@@ -27,8 +101,10 @@
               return false; 
             });         
           }); 
+          
+        on_off = 0
 
-         </script>
+        </script>
         <title>Regulácia Intenzity Osvetlenia</title>
 
     </head>
@@ -38,18 +114,108 @@
 
       <form id = "pwm_req">
         <label for="num-input">Zadaj úroveň osvetlenia 0 až 255</label>
-        <input type="text" id="pwm_input" name="pwm_input" pattern="[1-9][0-9]?$|^100$" required>
+        <input type="number" id="pwm_input" name="pwm_input" min="0" nax="255" required>
         <br><br>
         <input type="submit" value="nastaviť">
       </form>
 
-      <button id="buttonOnOff" type="submit" value="on">Spustiť monitorovanie</button>
+      <button id="buttonOnOff" type="submit" value="on", onclick="toggleStartStop()">Spustiť monitorovanie</button>
 
       <button id="buttonExit" type="submit" value="exit">Ukončenie aplikácie</button>
       
-      <div>
-        Aktualna úroveň osveltenia
+      <div id = 'data_list'>
+        <h2> Aktuálna úroveň osveltenia</h2>
 
       </div>
+
+      <div id = 'chart'>
+        <h2> GRAF </h2>
+        <canvas id="myChart"></canvas>
+      </div>
+
+      <div class="gauge">
+        <canvas id="foo"></canvas>
+        <div id="preview-textfield" style="font-size: 15px;">0</div>
+  </div>
+
+
     </body>
 </html>
+
+<script>
+  
+
+    var opts = {
+    angle: 0.15, // The span of the gauge arc
+    lineWidth: 0.44, // The line thickness
+    radiusScale: 1, // Relative radius
+    pointer: {
+      length: 0.6, // // Relative to gauge radius
+      strokeWidth: 0.035, // The thickness
+      color: '#000000' // Fill color
+    },
+    limitMax: false,     // If false, max value increases automatically if value > maxValue
+    limitMin: false,     // If true, the min value of the gauge will be fixed
+    colorStart: '#6FADCF',   // Colors
+    colorStop: '#8FC0DA',    // just experiment with them
+    strokeColor: '#E0E0E0',  // to see which ones work best for you
+    generateGradient: true,
+    highDpiSupport: true,     // High resolution support
+    
+  };
+  var target = document.getElementById('foo'); // your canvas element
+  var gauge = new Gauge(target).setOptions(opts); // create sexy gauge!
+  gauge.maxValue = 255; // set max gauge value
+  gauge.setMinValue(0);  // Prefer setter over gauge.minValue = 0
+  gauge.animationSpeed = 32; // set animation speed (32 is default value)
+  gauge.setTextField(document.getElementById("preview-textfield"));
+
+  function toggleStartStop() {
+    var button = document.getElementById("buttonOnOff");
+    if (button.innerHTML == "Spustiť monitorovanie") {
+      button.innerHTML = "Zastaviť monitorovanie";
+      on_off = 1;
+    } else {
+      button.innerHTML = "Spustiť monitorovanie";
+      on_off = 0;
+    }
+  }
+  labels = []
+const data = {
+    labels: labels,
+    datasets: [{
+        label: 'Intenzita osvetlenia',
+        data: [],
+        fill: false,
+        borderColor: 'rgb(75, 192, 192)',
+        tension: 0
+    }
+  
+    ]
+};
+
+const config = {
+    type: 'line',
+    data: data,
+    options: {
+        plugins: {
+            zoom: {
+                zoom: {
+                    wheel: {
+                        enabled: true,
+                    },
+                    pinch: {
+                        enabled: true
+                    },
+                    mode: 'xy',
+                }
+            }
+        }
+    }
+};
+  
+const myChart = new Chart(
+    document.getElementById('myChart'),
+    config
+);
+  </script>
