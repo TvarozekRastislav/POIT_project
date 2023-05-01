@@ -69,16 +69,10 @@ void loop() {
   int dataRecieved = readData();
 
   if(dataRecieved != 0){
-<<<<<<< HEAD:code_base/arduino_main/arduino_main.ino
     analogWrite(ledPwm1, dataRecieved);     
     analogWrite(ledPwm2, dataRecieved);      
     analogWrite(ledPwm3, dataRecieved);      
- 
-  }else if(dataRecieved == -1){
-=======
-    analogWrite(ledPwm, dataRecieved);      
   }else if(dataRecieved == 9999){
->>>>>>> 2d25541161cbdaa464e20591a2b25a1ffb7dc24e:arduino_main/arduino_main.ino
     exit(0);
   } 
 
