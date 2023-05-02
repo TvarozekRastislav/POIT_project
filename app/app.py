@@ -5,7 +5,8 @@ import configparser as ConfigParser
 import time
 import serial
 import re
-import MySQLdb  
+import MySQLdb 
+import json 
 
 app = Flask(__name__)
 
@@ -40,7 +41,28 @@ def decode_message(message):
     except:
         print("NOTHING CAME")
         return -1
-    
+
+def save_json(data):
+    try:
+        with open('data.json', 'r') as f:
+            existing_data = json.load(f)
+    except FileNotFoundError:
+        existing_data = []
+
+    data_id = len(existing_data) + 1
+    existing_data = []
+
+    data_with_id = {'id': data_id, 'data': data}
+    existing_data.append(data_with_id)
+
+    with open('data.json', 'w') as f:
+        json.dump(existing_data, f)
+
+    return data_id
+
+def get_data_db(cursor, row_id):
+    cursor.execute("select popis from light_intense where id = %s", (row_id))
+    return cursor.fetchone()
 
 def background_thread(args):
 
@@ -50,84 +72,112 @@ def background_thread(args):
     pwm_req = 0
     pwm_prev = 0
     reg_counter = 0
-    save_list_val = []
-    save_list_act = []
-    save_list_count = []
+    dataList = []
+    save = 0
+    prev_id = -1
+    prev_id_file = -1
     db = MySQLdb.connect(host=myhost,user=myuser,passwd=mypasswd,db=mydb)          
 
     while True:
         
         recived_data = ser.readline()
         arudino_message = decode_message(recived_data)
+        
         if arudino_message == -1 or arudino_message > 255:
             continue
 
         if args:
-            pwm_req = dict(args).get('pwm_req')
-            print("PWM_REQ: " + pwm_req)
-            #print("PWM_PREV: " + pwm_prev)
-            pwm_req = int(pwm_req)
 
-            if pwm_req != pwm_prev:
-                print("PWM_PREV: " + str(pwm_prev))
-                reg_fin = 0
-                reg_counter = 0
-                reg = 125
-                pwm_prev = pwm_req 
-            if not (pwm_req-10 < arudino_message and pwm_req+10 > arudino_message) :
-               
-                if pwm_req > arudino_message:
-                    print("PRIDAVAM")
-                    reg = reg + reg / 2
-                    if reg > 255:
-                        reg = 255
-                    ser.write(str.encode(str(int(reg))))
-                else:
-                    print("UBERAM")
-                    reg = reg - reg /2 
-                    if reg < 1:
-                        reg = 1
-                    ser.write(str.encode(str(int(reg))))
+            if args.get('pwm_req') != None:
+                pwm_req = dict(args).get('pwm_req')
+                print("PWM_REQ: " + pwm_req)
+                #print("PWM_PREV: " + pwm_prev)
+                pwm_req = int(pwm_req)
+
+                # regulation
+                if pwm_req != pwm_prev:
+                    print("PWM_PREV: " + str(pwm_prev))
+                    reg_fin = 0
+                    reg_counter = 0
+                    reg = 10
+                    pwm_prev = pwm_req 
+
+                if not (pwm_req-15 < arudino_message and pwm_req+15 > arudino_message) :
                 
-                if(reg_counter > 15):
+                    if reg_fin != 1:
+
+                        if pwm_req > arudino_message:
+                            print("PRIDAVAM")
+                            reg = reg + reg / 3
+                            if reg > 255:
+                                reg = 255
+                            ser.write(str.encode(str(int(reg))))
+                        else:
+                            print("UBERAM")
+                            reg = reg - reg / 3
+                            if reg < 1:
+                                reg = 1
+                            ser.write(str.encode(str(int(reg))))
+                        
+                        if(reg_counter > 18):
+                            reg_fin = 1
+                        reg_counter = reg_counter + 1
+
+                        print("REG:" + str(reg))
+
+                else:
+                    print("REGULATION IS FINISHED")
                     reg_fin = 1
-                reg_counter = reg_counter + 1
-
-                print("REG:" + str(reg))
-                #time.sleep(1)
-                #recived_data = ser.readline()
-                #arudino_message = decode_message(recived_data)
-
-            else:
-                print("REGULATION IS FINISHED")
-                reg_fin = 1
-                pwm_prev = pwm_req 
+                    pwm_prev = pwm_req 
             
             if args.get("save") == 1 :
                 save = 1
-                save_list_val.add(arudino_message)
-                save_list_act.add(reg)
-                save_list_count.add(counter)
+                dataDict = {
+                    "t": time.time(),
+                    "x": counter,
+                    "y": arudino_message,
+                    "u": reg
+                }
+                dataList.append(dataDict)
+                socketio.emit(
+                    'sensor_data',
+                    {
+                        'data':arudino_message,
+                        'count': counter,
+                        'time': time.time()
+                    },
+                    namespace = '/prod'
+                )
+                counter = counter + 1 
 
                
             if save == 1 and args.get("save") == 0:
                 save = 0 
-                jsonList = []
-                for i in range(0,len(save_list_val)):
-                    jsonList.append({"val" : save_list_val[i], "act" : save_list_act[i], "count": save_list_count[i]})
+                json_object = json.dumps(dataList, indent=4)
+                print(str(dataList).replace("'", "\""))
+
                 cursor = db.cursor()
-                cursor.execute("INSERT INTO intense (hodnoty) VALUES (%s)", (json.dumps(jsonList)))
+                cursor.execute("insert into light_intense (popis) values (%s)", [json_object])
                 db.commit()
 
-        socketio.emit(
-            'sensor_data',
-            {
-                'data':arudino_message,
-                'count': counter
-            },
-            namespace = '/prod'
-        )
-        counter = counter + 1 
+                save_json(json_object)
+
+                dataList = []
+
+            if args.get("sql_id") is not None and prev_id != args.get("sql_id"): 
+                print("VYBERAM")
+                prev_id = args.get("sql_id") 
+                row_vals = get_data_db(db.cursor(), args.get("sql_id"))
+                #row_vals_json = json.dumps(row_vals)
+
+                #print(row_vals_json)
+                socketio.emit(
+                    'sql_data',
+                    {
+                        'data': row_vals
+                    },
+                    namespace = '/prod'
+                )
 
 @app.route('/')
 def index():
@@ -151,13 +201,27 @@ def disconnect_request():
 @socketio.on('pwm_req', namespace='/prod')
 def pwm_req(message):
     session['pwm_req'] = message['value']
-    print("PRISLI DATA")
     print(session['pwm_req'])
+
+@socketio.on('sql_id', namespace='/prod')
+def pwm_req(message):
+    session['sql_id'] = message['value']
+    print(session['sql_id'])
+
+@socketio.on('file_id', namespace='/prod')
+def pwm_req(message):
+    session['file_id'] = message['value']
+    print(session['file_id'])
+
 
 @socketio.on('save', namespace='/prod')
 def pwm_req(message):
     session['save'] = message['value']
-    
+
+@socketio.on('reset', namespace='/prod')
+def pwm_req():
+    ser.write(str.encode(str(9999)))
+    print("RESET")
 
 if __name__ == '__main__':
     socketio.run(app, host="0.0.0.0", port=80, debug=True)

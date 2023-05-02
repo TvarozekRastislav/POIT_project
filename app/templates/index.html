@@ -18,6 +18,7 @@
 
           $(document).ready(function() {
             namespace = '/prod';
+            sqlChart = null
             var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + namespace);
             
 
@@ -25,6 +26,63 @@
               socket.emit('connected', {data: 'CONNECTED FROM CLIENT', value: 1}); 
             });
             
+            socket.on('sql_data', function(msg) {
+              row_val = msg.data
+              const parsedData = JSON.parse(row_val);
+              const x = parsedData.map(obj => obj.x)
+              const y = parsedData.map(obj => obj.y)
+              const u = parsedData.map(obj => obj.u)
+              
+
+              labels = []
+
+              const config = {
+                type: 'line',
+                data: {
+                  labels: labels,
+                  datasets:[{
+                    label: "Intenzita Osvetlenia",
+                    data: [],
+                    fill: false,
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0
+                  },{
+                    label: "Akčný zásah",
+                    data: [],
+                    fill: false,
+                    borderColor: 'rgb(0, 102, 204)',
+                    tension: 0
+                  }]
+                },
+              };
+
+
+              if (sqlChart == null){
+                sqlChart = new Chart(
+                    document.getElementById('sqlChart'),
+                    config
+                );
+              };
+
+              sqlChart.data.labels = x
+              sqlChart.data.datasets[0].data = y
+              sqlChart.data.datasets[1].data = u
+              sqlChart.update();
+              
+              var myParagraph  = document.getElementById("vypis_saved"); 
+              console.log(parsedData)
+              
+              let htmlString = "<ul>";
+
+              for (let i = 0; i < parsedData.length; i++) {
+                htmlString += `<li>${parsedData[i].x} , ${parsedData[i].y} , ${parsedData[i].u}</li>`;
+              }
+              htmlString += "</ul>";
+
+              // Set the content of the p element to the HTML string
+              myParagraph.innerHTML = htmlString;
+            });
+
             socket.on('sensor_data', function(msg){
               sensor_data = msg.data
               console.log(sensor_data)
@@ -44,7 +102,7 @@
 			          }
                 
                 //chart
-                myChart.data.labels.push(msg.count)
+                myChart.data.labels.push(time)
                 myChart.data.datasets[0].data.push(parseInt(msg.data))
                 myChart.update();
 
@@ -59,13 +117,38 @@
               sent_value = ($('#pwm_input').val());
               socket.emit('pwm_req',{value: sent_value});              
               return false; 
-              });         
-            
+              });   
+
+            // sql id record
+            $('form#sql_id').submit(function(event) {
+              sent_value = ($('#row_id').val());
+              socket.emit('sql_id',{value: sent_value});              
+              return false; 
+              });    
+              
+            // file id record
+            $('form#file_id').submit(function(event) {
+              sent_value = ($('#row_id_file').val());
+              socket.emit('file_id',{value: sent_value});              
+              return false; 
+              });    
+
             //vypnutie
-            $('button#buttonExit').submit(function(event) {
+            $('button#buttonExit').click(function(event) {
               socket.emit('disconnect_request');
               return false; 
-            });         
+            });     
+            
+            //saving
+            $('button#buttonOnOff').click(function(event) {
+              socket.emit('save',{value: on_off});
+              return false; 
+            }); 
+            
+            $('button#buttonReset').click(function(event) {
+              socket.emit('reset');
+              return false; 
+            }); 
           }); 
 
         </script>
@@ -86,8 +169,9 @@
 
       <button id="buttonOnOff" type="submit" value="on", onclick="toggleStartStop()">Spustiť monitorovanie</button>
 
-      <button id="buttonExit" type="submit" value="exit">Ukončenie aplikácie</button>
-      
+      <button id="buttonExit" type="submit" value="exit">Dissconnect</button>
+      <button id="buttonReset" type="submit" value="exit">Reset Senzorov</button>
+
       <div id = 'data_list'>
         <h2> Aktuálna úroveň osveltenia</h2>
 
@@ -101,8 +185,25 @@
       <div class="gauge">
         <canvas id="foo"></canvas>
         <div id="preview-textfield" style="font-size: 15px;">0</div>
-  </div>
-
+      </div>
+      
+      <div>
+        <form id="sql_id">
+          <input type="number", name="row_id", id="row_id", placeholder="Id záznam SQL">
+          <input type="submit", value="Odoslať">
+        </form>
+        <canvas id="sqlChart"></canvas>
+        <div>
+          <h2> Aktuálna úroveň osveltenia</h2>
+          <p id = "vypis_saved"></p>
+        </div>
+      </div>
+      
+      <form id="file_id"> 
+        <input type="number", name="row_id_file", id="row_id_file", placeholder="Id záznam súbor">
+        <input type="submit", value="Odoslať">
+        
+      </form>
 
     </body>
 </html>
