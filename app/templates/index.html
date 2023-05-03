@@ -14,6 +14,9 @@
           width: 50%;
           margin: 0 auto;
       }
+      pre{
+        font-size: larger;
+      }
       #monitoring{
         display: flex;
         box-shadow: rgba(0, 0, 0, 0.10) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px;        padding: 1%;
@@ -215,9 +218,9 @@
             });
 
             socket.on('json_data', function(msg) {
-              row_val = msg.data
-              console.log(row_val['data'])
-              const parsedData = JSON.parse(row_val['data']);
+              row_val = msg.data.data_s
+
+              const parsedData = row_val['data']
               const x = parsedData.map(obj => obj.x)
               const y = parsedData.map(obj => obj.y)
               const u = parsedData.map(obj => obj.u)
@@ -380,6 +383,7 @@
             </div>
 
             <div id="vypis_saved_div">
+              <pre>      X  Y  U </pre>
               <p id = "vypis_saved"></p>
             </div>
     

@@ -1,6 +1,7 @@
 from threading import Lock
 from flask import Flask, render_template, session, request, jsonify, url_for
 from flask_socketio import SocketIO, emit, disconnect  
+from simple_pid import PID
 import configparser as ConfigParser
 import time
 import serial
@@ -28,41 +29,54 @@ mypasswd = config.get('mysqlDB', 'passwd')
 mydb = config.get('mysqlDB', 'db')
 
 def decode_message(message):
-    string = message.decode('utf-8')
-    number = re.findall(r'\d+', string)
-    print("ARDUINO MESSAGE:")
-    try:
-        print(number[0])
-        number = number[0]
-        if int(number) > 255 :
+    if(message): 
+        string = message.decode('utf-8')
+        number = re.findall(r'\d+', string)
+        print("ARDUINO MESSAGE:")
+        try:
+            print(number[0])
+            number = number[0]
+            if int(number) > 255 :
+                return -1
+            else:
+                return int(number)
+        except:
+            print("NOTHING CAME")
             return -1
-        else:
-            return int(number)
-    except:
-        print("NOTHING CAME")
-        return -1
+    return -1
+    
+def save_json(data_list):
 
-def save_json(data):
-    try:
-        with open('data.json', 'r') as f:
-            existing_data = json.load(f)
-    except FileNotFoundError:
-        existing_data = []
+    with open("data.json", 'r') as f:
+        data = json.load(f)
+    if data:
+        id = max(data, key=lambda item:item['id'])
+        struc = {
+            "id": id['id']+1,
+            "data_s":{
+                "data": data_list
+            }
+        }    
+    else:
+        struc = {
+            "id": 1,
+            "data_s":{
+                "data": data_list
+            }
+        }    
+   
+    data.append(struc)
 
-    data_id = len(existing_data) + 1
-    existing_data = []
-
-    data_with_id = {'id': data_id, 'data': data}
-    existing_data.append(data_with_id)
-
-    with open('data.json', 'w') as f:
-        json.dump(existing_data, f)
-
-    return data_id
+    with open("data.json", 'w') as f:
+        f.write(json.dumps(data, indent=4))
 
 def get_data_db(cursor, row_id):
-    cursor.execute("select popis from light_intense where id = %s", (row_id))
-    return cursor.fetchone()
+    try:
+        cursor.execute("select popis from light_intense where id = %s", (row_id))
+        return cursor.fetchone()
+    except:
+        print("NOT EXISTING MODEL ID")
+        return 0
 
 def get_data_file(row_id):
     with open('data.json', 'r') as f:
@@ -70,20 +84,20 @@ def get_data_file(row_id):
     for item in data:
         print(item)
         if item['id'] == int(row_id):
+            print("JSON")
+            print(item)
             return item
+    return 0
 
 def background_thread(args):
-
     counter = 0
-    reg = 125
-    reg_fin = 0
-    pwm_req = 0
+    pwm_req = -1
     pwm_prev = 0
-    reg_counter = 0
     dataList = []
     save = 0
     prev_id = -1
     prev_id_file = -1
+    u = -1
     db = MySQLdb.connect(host=myhost,user=myuser,passwd=mypasswd,db=mydb)          
 
     while True:
@@ -94,49 +108,30 @@ def background_thread(args):
         if arudino_message == -1 or arudino_message > 255:
             continue
 
+        if u == -1:
+            u = arudino_message - (arudino_message/2)
+
         if args:
 
             if args.get('pwm_req') != None:
                 pwm_req = dict(args).get('pwm_req')
                 print("PWM_REQ: " + pwm_req)
-                #print("PWM_PREV: " + pwm_prev)
                 pwm_req = int(pwm_req)
 
                 # regulation
                 if pwm_req != pwm_prev:
                     print("PWM_PREV: " + str(pwm_prev))
-                    reg_fin = 0
-                    reg_counter = 0
-                    reg = 10
+                    pid = PID(0.1, 0.3, 0.25, setpoint=pwm_req, output_limits=(1,255), starting_output=u)
                     pwm_prev = pwm_req 
 
-                if not (pwm_req-15 < arudino_message and pwm_req+15 > arudino_message) :
+                u = pid(arudino_message)
+                print("AKCNY ZASAH")
+                print(u)
+                ser.write(str.encode(str(int(u))))
+
                 
-                    if reg_fin != 1:
-
-                        if pwm_req > arudino_message:
-                            print("PRIDAVAM")
-                            reg = reg + reg / 3
-                            if reg > 255:
-                                reg = 255
-                            ser.write(str.encode(str(int(reg))))
-                        else:
-                            print("UBERAM")
-                            reg = reg - reg / 3
-                            if reg < 1:
-                                reg = 1
-                            ser.write(str.encode(str(int(reg))))
-                        
-                        if(reg_counter > 18):
-                            reg_fin = 1
-                        reg_counter = reg_counter + 1
-
-                        print("REG:" + str(reg))
-
-                else:
-                    print("REGULATION IS FINISHED")
-                    reg_fin = 1
-                    pwm_prev = pwm_req 
+            if not (pwm_req-15 < arudino_message and pwm_req+15 > arudino_message) :
+                pwm_prev = pwm_req 
             
             if args.get("save") == 1 :
                 save = 1
@@ -144,8 +139,9 @@ def background_thread(args):
                     "t": time.time(),
                     "x": counter,
                     "y": arudino_message,
-                    "u": reg
+                    "u": u
                 }
+
                 dataList.append(dataDict)
                 socketio.emit(
                     'sensor_data',
@@ -168,7 +164,7 @@ def background_thread(args):
                 cursor.execute("insert into light_intense (popis) values (%s)", [json_object])
                 db.commit()
 
-                save_json(json_object)
+                save_json(dataList)
 
                 dataList = []
 
@@ -176,26 +172,27 @@ def background_thread(args):
                 prev_id = args.get("sql_id") 
                 row_vals = get_data_db(db.cursor(), args.get("sql_id"))
 
-                socketio.emit(
-                    'sql_data',
-                    {
-                        'data': row_vals
-                    },
-                    namespace = '/prod'
-                )
+                if row_vals != 0:
+                    socketio.emit(
+                        'sql_data',
+                        {
+                            'data': row_vals
+                        },
+                        namespace = '/prod'
+                    )
 
             if args.get("file_id") is not None and prev_id_file != args.get("file_id"): 
                 prev_id_file = args.get("file_id") 
                 row_vals = get_data_file(args.get("file_id"))
-                print(row_vals)
 
-                socketio.emit(
-                    'json_data',
-                    {
-                        'data': row_vals
-                    },
-                    namespace = '/prod'
-                )
+                if row_vals != 0:
+                    socketio.emit(
+                        'json_data',
+                        {
+                            'data': row_vals
+                        },
+                        namespace = '/prod'
+                    )
 
 @app.route('/')
 def index():
@@ -213,6 +210,7 @@ def connect(message):
     
 @socketio.on('disconnect_request', namespace='/prod')
 def disconnect_request():
+    print("ODPOJIŤ")
     ser.write(9998)
     disconnect()
 
@@ -220,23 +218,27 @@ def disconnect_request():
 def pwm_req(message):
     session['pwm_req'] = message['value']
     print(session['pwm_req'])
+    print("REGULACIA")
 
 @socketio.on('sql_id', namespace='/prod')
 def pwm_req(message):
     session['sql_id'] = message['value']
+    print("SQL_ID")
 
 @socketio.on('file_id', namespace='/prod')
 def pwm_req(message):
     session['file_id'] = message['value']
-
+    print("FILE_ID")
 
 @socketio.on('save', namespace='/prod')
 def pwm_req(message):
     session['save'] = message['value']
+    print("SAVING")
 
 @socketio.on('reset', namespace='/prod')
 def pwm_req():
     ser.write(str.encode(str(9999)))
+    print("RESET")
 
 if __name__ == '__main__':
     socketio.run(app, host="0.0.0.0", port=80, debug=True)
