@@ -64,6 +64,14 @@ def get_data_db(cursor, row_id):
     cursor.execute("select popis from light_intense where id = %s", (row_id))
     return cursor.fetchone()
 
+def get_data_file(row_id):
+    with open('data.json', 'r') as f:
+        data = json.load(f)
+    for item in data:
+        print(item)
+        if item['id'] == int(row_id):
+            return item
+
 def background_thread(args):
 
     counter = 0
@@ -165,14 +173,24 @@ def background_thread(args):
                 dataList = []
 
             if args.get("sql_id") is not None and prev_id != args.get("sql_id"): 
-                print("VYBERAM")
                 prev_id = args.get("sql_id") 
                 row_vals = get_data_db(db.cursor(), args.get("sql_id"))
-                #row_vals_json = json.dumps(row_vals)
 
-                #print(row_vals_json)
                 socketio.emit(
                     'sql_data',
+                    {
+                        'data': row_vals
+                    },
+                    namespace = '/prod'
+                )
+
+            if args.get("file_id") is not None and prev_id_file != args.get("file_id"): 
+                prev_id_file = args.get("file_id") 
+                row_vals = get_data_file(args.get("file_id"))
+                print(row_vals)
+
+                socketio.emit(
+                    'json_data',
                     {
                         'data': row_vals
                     },
@@ -206,12 +224,10 @@ def pwm_req(message):
 @socketio.on('sql_id', namespace='/prod')
 def pwm_req(message):
     session['sql_id'] = message['value']
-    print(session['sql_id'])
 
 @socketio.on('file_id', namespace='/prod')
 def pwm_req(message):
     session['file_id'] = message['value']
-    print(session['file_id'])
 
 
 @socketio.on('save', namespace='/prod')
@@ -221,7 +237,6 @@ def pwm_req(message):
 @socketio.on('reset', namespace='/prod')
 def pwm_req():
     ser.write(str.encode(str(9999)))
-    print("RESET")
 
 if __name__ == '__main__':
     socketio.run(app, host="0.0.0.0", port=80, debug=True)

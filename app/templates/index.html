@@ -1,13 +1,159 @@
 <!DOCTYPE HTML>
 <html>
-    <head>
-      <style>
-        #chart {
-          width: 75%;
+    <style>
+      h1{
+        box-shadow: rgba(0, 0, 0, 0.25) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px;
+        width: 40%;
+        text-align: center;
+        padding: 1%;
+      }
+      body{
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      #chart {
+          width: 50%;
           margin: 0 auto;
-        }
-      </style>
+      }
+
+      #monitoring{
+        display: flex;
+        box-shadow: rgba(0, 0, 0, 0.10) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px;        padding: 1%;
+        margin: 1%;
+      }
+
+      #query_select{
+        display: flex;
+      }
+
+      #vypis_saved_div{
+        margin: auto;        
+      }
+      label{
+        font-weight: bold;
+      }
+      #pwm_input{
+        margin-top: 1%;
+      }
+
+      #chartDiv{
+        width: 50%;
+        margin: auto;
+      }
+
+      #controll_panel{
+        display: flex;
+        box-shadow: rgba(0, 0, 0, 0.1) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px;        padding: 1%;
+        margin: auto;
+        width: 50%;
+      }
+
+      button{
+        margin: 1%;
+      }
+      #pwm_req{
+        text-align: center;
+        padding-top: 3%;
+      }
+      #controllButtonsDiv{
+        margin-left: 10%;
+        padding: 1%;
+        display: flex;
+        flex-direction: column;
+      }
+      .littleTitle{
+        text-align: center;
+      }
+
+      .gauge{
+        margin: auto;
+      }
+
+      #finder{
+        box-shadow: rgba(0, 0, 0, 0.50) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px;        
+        padding: 1%;
+        margin: 1%;
+        text-align: center;
+        align-items: center;
+      }
+
+      #row_id_file{
+        margin: 0.5%;
+      }
+
+      #row_id{
+        margin: 0.5%;
+      }
+.button-18 {
+  appearance: none;
+  background-color: #2ea44f;
+  border: 1px solid rgba(27, 31, 35, .15);
+  border-radius: 6px;
+  box-shadow: rgba(27, 31, 35, .1) 0 1px 0;
+  box-sizing: border-box;
+  color: #fff;
+  cursor: pointer;
+  display: inline-block;
+  font-family: -apple-system,system-ui,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji";
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  padding: 6px 16px;
+  position: relative;
+  text-align: center;
+  text-decoration: none;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.button-18:focus:not(:focus-visible):not(.focus-visible) {
+  box-shadow: none;
+  outline: none;
+}
+
+.button-18:hover {
+  background-color: #2c974b;
+}
+
+.button-18:focus {
+  box-shadow: rgba(46, 164, 79, .4) 0 0 0 3px;
+  outline: none;
+}
+
+.button-18:disabled {
+  background-color: #94d3a2;
+  border-color: rgba(27, 31, 35, .1);
+  color: rgba(255, 255, 255, .8);
+  cursor: default;
+}
+
+.button-18:active {
+  background-color: #298e46;
+  box-shadow: rgba(20, 70, 32, .2) 0 1px 0 inset;
+}
+
+    input{
       
+    background-color: rgb(250, 251, 252);
+    border-color: rgb(223, 225, 230);
+    color: rgb(9, 30, 66);
+    cursor: text;
+    border-radius: 3px;
+    border-width: 2px;
+    border-style: solid;
+    box-sizing: border-box;
+    font-size: 14px;
+    transition: background-color 0.2s ease-in-out 0s, border-color 0.2s ease-in-out 0s;
+    line-height: 1.42857; 
+    padding: 8px 6px;
+    height: 36px;
+    }
+
+    </style>
+    <head>
+
         <script type="text/javascript" src="//code.jquery.com/jquery-1.4.2.min.js"></script>
         <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.5/socket.io.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -20,21 +166,8 @@
             namespace = '/prod';
             sqlChart = null
             var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + namespace);
-            
 
-            socket.on('connect', function() {
-              socket.emit('connected', {data: 'CONNECTED FROM CLIENT', value: 1}); 
-            });
-            
-            socket.on('sql_data', function(msg) {
-              row_val = msg.data
-              const parsedData = JSON.parse(row_val);
-              const x = parsedData.map(obj => obj.x)
-              const y = parsedData.map(obj => obj.y)
-              const u = parsedData.map(obj => obj.u)
-              
-
-              labels = []
+            labels = []
 
               const config = {
                 type: 'line',
@@ -56,13 +189,49 @@
                 },
               };
 
-
               if (sqlChart == null){
                 sqlChart = new Chart(
                     document.getElementById('sqlChart'),
                     config
                 );
-              };
+            };
+            socket.on('connect', function() {
+              socket.emit('connected', {data: 'CONNECTED FROM CLIENT', value: 1}); 
+            });
+            
+            socket.on('sql_data', function(msg) {
+              row_val = msg.data
+              const parsedData = JSON.parse(row_val);
+              const x = parsedData.map(obj => obj.x)
+              const y = parsedData.map(obj => obj.y)
+              const u = parsedData.map(obj => obj.u)
+
+              sqlChart.data.labels = x
+              sqlChart.data.datasets[0].data = y
+              sqlChart.data.datasets[1].data = u
+              sqlChart.update();
+              
+              var myParagraph  = document.getElementById("vypis_saved"); 
+              console.log(parsedData)
+              
+              let htmlString = "<ul>";
+
+              for (let i = 0; i < parsedData.length; i++) {
+                htmlString += `<li>${parsedData[i].x} , ${parsedData[i].y} , ${parsedData[i].u}</li>`;
+              }
+              htmlString += "</ul>";
+
+              // Set the content of the p element to the HTML string
+              myParagraph.innerHTML = htmlString;
+            });
+
+            socket.on('json_data', function(msg) {
+              row_val = msg.data
+              console.log(row_val['data'])
+              const parsedData = JSON.parse(row_val['data']);
+              const x = parsedData.map(obj => obj.x)
+              const y = parsedData.map(obj => obj.y)
+              const u = parsedData.map(obj => obj.u)
 
               sqlChart.data.labels = x
               sqlChart.data.datasets[0].data = y
@@ -97,7 +266,7 @@
 			          newListItem.innerHTML = message; 
 			          dataList.appendChild(newListItem); 
 
-                if (dataList.children.length > 20) {
+                if (dataList.children.length > 15) {
 				          dataList.removeChild(dataList.children[0]);
 			          }
                 
@@ -160,63 +329,80 @@
 
       <h1> Regulácia Intenzity Osvetlenia </h1>
 
-      <form id = "pwm_req">
-        <label for="num-input">Zadaj úroveň osvetlenia 0 až 255</label>
-        <input type="number" id="pwm_input" name="pwm_input" min="0" nax="255" required>
-        <br><br>
-        <input type="submit" value="nastaviť">
-      </form>
+      <div id="parent">
+        <h2 class="littleTitle">Ovládacií panel</h2>
+        <div id="controll_panel">
+          <form id = "pwm_req">
+            <label id="mar" for="num-input">Zadaj požadovanú úroveň osvetlenia</label>
+            <input type="number" id="pwm_input" name="pwm_input" placeholder = "0-255" min="0" nax="255" required>
+            <br><br>
+            <input type="submit" value="Regulovať" class="button-18" >
+          </form>
+          <div id="controllButtonsDiv">
+            <button id="buttonOnOff" class="button-18"type="submit" value="on", onclick="toggleStartStop()">Spustiť Monitorovanie</button>
+            <button id="buttonExit" class="button-18" type="submit" value="exit">Odpojiť</button>
+            <button id="buttonReset" class="button-18"type="submit" value="exit">Reset Senzorov</button>
+          </div>
+        </div>
 
-      <button id="buttonOnOff" type="submit" value="on", onclick="toggleStartStop()">Spustiť monitorovanie</button>
+        <h2 class="littleTitle">Monitorovanie</h2>
+        <div id="monitoring">
 
-      <button id="buttonExit" type="submit" value="exit">Dissconnect</button>
-      <button id="buttonReset" type="submit" value="exit">Reset Senzorov</button>
+          <div id = 'data_list'>
+          </div>
 
-      <div id = 'data_list'>
-        <h2> Aktuálna úroveň osveltenia</h2>
+          <div id = 'chart'>
+            <canvas id="myChart"></canvas>
+          </div>
 
-      </div>
+          <div class="gauge">
+            <canvas id="foo"></canvas>
+            <div id="preview-textfield" style="font-size: 15px;">0</div>
+          </div>
+        </div>
 
-      <div id = 'chart'>
-        <h2> GRAF </h2>
-        <canvas id="myChart"></canvas>
-      </div>
+        <h2 class="littleTitle">Vyhľadanie záznamu</h2>
+        <div id = "finder">
 
-      <div class="gauge">
-        <canvas id="foo"></canvas>
-        <div id="preview-textfield" style="font-size: 15px;">0</div>
-      </div>
-      
-      <div>
-        <form id="sql_id">
-          <input type="number", name="row_id", id="row_id", placeholder="Id záznam SQL">
-          <input type="submit", value="Odoslať">
-        </form>
-        <canvas id="sqlChart"></canvas>
-        <div>
-          <h2> Aktuálna úroveň osveltenia</h2>
-          <p id = "vypis_saved"></p>
+          <form id="sql_id">
+              <label for="num-row_id">SQL vyhľadávanie</label>
+              <input type="number", name="row_id", id="row_id", placeholder="Id záznamu ">
+            <input type="submit", value="Odoslať" class="button-18" >
+          </form>
+
+          <form id="file_id"> 
+              <label for="num-row_id_file">Súborové vyhľadávanie</label>
+              <input type="number", name="row_id_file", id="row_id_file", placeholder="Id záznamu">
+            <input type="submit", value="Odoslať" class="button-18" >
+          </form>
+          
+          <div id="query_select">
+
+            <div id="chartDiv">
+              <canvas id="sqlChart"></canvas>
+            </div>
+            <div id="vypis_saved_div">
+              <p id = "vypis_saved"></p>
+            </div>
+        
+          </div>
+
+
         </div>
       </div>
-      
-      <form id="file_id"> 
-        <input type="number", name="row_id_file", id="row_id_file", placeholder="Id záznam súbor">
-        <input type="submit", value="Odoslať">
-        
-      </form>
-
     </body>
+
 </html>
 
 <script>
   
   function toggleStartStop() {
     var button = document.getElementById("buttonOnOff");
-    if (button.innerHTML == "Spustiť monitorovanie") {
-      button.innerHTML = "Zastaviť monitorovanie";
+    if (button.innerHTML == "Spustiť Monitorovanie") {
+      button.innerHTML = "Zastaviť Monitorovanie";
       on_off = 1;
     } else {
-      button.innerHTML = "Spustiť monitorovanie";
+      button.innerHTML = "Spustiť Monitorovanie";
       on_off = 0;
     }
   }
@@ -247,6 +433,7 @@
   gauge.setMinValue(0);  // Prefer setter over gauge.minValue = 0
   gauge.animationSpeed = 32; // set animation speed (32 is default value)
   gauge.setTextField(document.getElementById("preview-textfield"));
+  gauge.set(0); // set actual value
 
   labels = []
 
