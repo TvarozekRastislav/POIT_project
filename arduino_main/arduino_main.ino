@@ -4,7 +4,6 @@ const int ledPwm3 = 0;
 
 const int sensor = A0;
 
-
 void setup() {
   Serial.begin(115200);
 
@@ -16,7 +15,6 @@ void setup() {
   analogWrite(ledPwm2, 0);      
   analogWrite(ledPwm3, 0);      
    
-  
 }
 
 int readSensor(){
@@ -27,37 +25,22 @@ int sendData(int sensorValuePwm){
   int bytesSent = 0;
   char strBuf[50];
 
-  Serial.println("--------SENT DATA ------");
-  sprintf(strBuf, "sent_arduino_sensor=%d", sensorValuePwm);
+  sprintf(strBuf, "sent_arduino_sensor=%d\n", sensorValuePwm);
   bytesSent = Serial.write(strBuf);
-  Serial.println("");
-  Serial.println("------------------------");
-
-
-  if(bytesSent == 0 ){
-    Serial.println("ERROR: sensor values not sent");
-  }else{
-    Serial.print("INFO: sent serial data: ");
-    Serial.println(sensorValuePwm);
-  }
 
   return bytesSent;
 }
 
 int readData(){
-  int bytesRecieved = 0;
 
   if(Serial.available() > 0){
 
-    char strBuf[50];
-
-    Serial.println("--------READ DATA ------");
-    Serial.print("INFO: recieved serial data: ");
-    Serial.println(bytesRecieved);
-    Serial.println("------------------------");
+    int bytesRecieved = Serial.parseInt();
+    //Serial.println(bytesRecieved);
+    return bytesRecieved;
 
   }
-  return bytesRecieved;
+  return 0;
 }
 
 void loop() {
@@ -66,16 +49,20 @@ void loop() {
   
   sendData(sensorValuePwm);
   
+  delay(50);
+
   int dataRecieved = readData();
 
-  if(dataRecieved != 0){
+  if(dataRecieved == 9999){
+    analogWrite(ledPwm1, 0);     
+    analogWrite(ledPwm2, 0);      
+    analogWrite(ledPwm3, 0); 
+  }else if(dataRecieved == 9998){
+    exit(0);
+  }else if(dataRecieved != 0){
     analogWrite(ledPwm1, dataRecieved);     
     analogWrite(ledPwm2, dataRecieved);      
     analogWrite(ledPwm3, dataRecieved);      
-  }else if(dataRecieved == 9999){
-    exit(0);
   } 
-
-  delay(200);
 
 }
